@@ -251,7 +251,7 @@ public class Program
                         }
                     }
                 };
-                Console.WriteLine($"    Generated research notes for {scroll.Name} (0x{scroll.FormKey.ID:X})");
+                Console.WriteLine($"\tGenerated research notes for {scroll.Name} (0x{scroll.FormKey.ID:X})");
 
                 // Perk logic
                 perk.EditorID = "MAG_ResearchPerk" + nameStripped;
@@ -260,7 +260,7 @@ public class Program
                 perk.Hidden = true;
                 perk.Level = 0;
                 perk.NumRanks = 1;
-                Console.WriteLine($"    Generated perk for {scroll.Name} (0x{scroll.FormKey.ID:X})");
+                Console.WriteLine($"\tGenerated perk for {scroll.Name} (0x{scroll.FormKey.ID:X})");
 
                 // Recipe logic
                 recipe.EditorID = "MAG_RecipeScroll" + nameStripped;
@@ -295,7 +295,7 @@ public class Program
                     }
                 };
                 recipe.Conditions.Add(hasPerk);
-                Console.WriteLine($"    Generated recipe for {scroll.Name} (0x{scroll.FormKey.ID:X})");
+                Console.WriteLine($"\tGenerated recipe for {scroll.Name} (0x{scroll.FormKey.ID:X})");
 
                 // Breakdown recipe logic
                 breakdownRecipe.EditorID = "MAG_BreakdownRecipeScroll" + nameStripped;
@@ -329,7 +329,7 @@ public class Program
                 };
                 breakdownRecipe.Conditions.Add(noPerk);
                 breakdownRecipe.Conditions.Add(hasScrolls);
-                Console.WriteLine($"    Generated breakdown recipe for {scroll.Name} (0x{scroll.FormKey.ID:X})");
+                Console.WriteLine($"\tGenerated breakdown recipe for {scroll.Name} (0x{scroll.FormKey.ID:X})");
 
                 scrollCount++;
             }
@@ -382,7 +382,8 @@ public class Program
                 if (patched.EnchantmentAmount == ench.EnchantmentAmount)
                     state.PatchMod.Remove(patched);
 
-                Console.WriteLine($"    Finished processing {ench.Name} (0x{ench.FormKey.ID:X}: {ench.FormKey.ModKey.FileName})");
+                Console.WriteLine(
+                    $"\tFinished processing {ench.Name} (0x{ench.FormKey.ID:X}: {ench.FormKey.ModKey.FileName})");
 
                 staffEnchCount++;
             }
@@ -437,7 +438,8 @@ public class Program
                 if (patched.EnchantmentAmount == staff.EnchantmentAmount)
                     state.PatchMod.Remove(patched);
 
-                Console.WriteLine($"    Finished processing {staff.Name} (0x{staff.FormKey.ID:X}: {staff.FormKey.ModKey.FileName})");
+                Console.WriteLine(
+                    $"\tFinished processing {staff.Name} (0x{staff.FormKey.ID:X}: {staff.FormKey.ModKey.FileName})");
 
                 staffCount++;
             }
@@ -531,14 +533,14 @@ public class Program
                     });
 
                     Console.WriteLine(
-                        $"    Finished processing recipe for {staff.Name} (0x{staffRecipe.FormKey.ID:X}: {staffRecipe.FormKey.ModKey.FileName})");
+                        $"\tFinished processing recipe for {staff.Name} (0x{staffRecipe.FormKey.ID:X}: {staffRecipe.FormKey.ModKey.FileName})");
 
                     staffRecipeCount++;
                 }
                 else
                 {
                     Console.WriteLine(
-                        $"    ERROR: Failed to process recipe for {staffRecipe.EditorID} (0x{staffRecipe.FormKey.ID:X})");
+                        $"\tERROR: Failed to process recipe for {staffRecipe.EditorID} (0x{staffRecipe.FormKey.ID:X})");
                     errors.Add(staffRecipe);
                 }
             }
@@ -547,7 +549,7 @@ public class Program
             {
                 Console.WriteLine($"Failed to process {errors.Count} staff recipes: ");
                 foreach (var error in errors)
-                    Console.WriteLine($"    {error.EditorID} (0x{error.FormKey.ID:X})");
+                    Console.WriteLine($"\t{error.EditorID} (0x{error.FormKey.ID:X})");
             }
         }
 
@@ -577,7 +579,8 @@ public class Program
                 if (patched.Value == soulgem.Value)
                     state.PatchMod.Remove(patched);
 
-                Console.WriteLine($"    Finished processing {soulgem.EditorID} (0x{soulgem.FormKey.ID:X}: {soulgem.FormKey.ModKey.FileName})");
+                Console.WriteLine(
+                    $"\tFinished processing {soulgem.EditorID} (0x{soulgem.FormKey.ID:X}: {soulgem.FormKey.ModKey.FileName})");
             }
 
         Console.WriteLine();
@@ -587,7 +590,7 @@ public class Program
 
         var recordCount = state.PatchMod.EnumerateMajorRecords().Count();
 
-        Console.WriteLine($"Processed {recordCount} records");
+        Console.WriteLine($"Patched {recordCount} records");
 
         if (recordCount >= 2048) return;
 
