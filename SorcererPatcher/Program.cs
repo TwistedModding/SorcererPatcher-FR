@@ -98,6 +98,57 @@ public class Program
         };
         var heartStone = state.LinkCache.Resolve<IMiscItemGetter>("DLC2HeartStone").ToNullableLink();
 
+        HashSet<uint> baseGameUniqueStaves = new()
+        {
+            0x7e5bb, // Dragon Priest Staff
+            0xb3dfa, // Eye of Melka
+            0x46e0b, // Gadnor's Staff of Charming
+            0xab704, // Halldir's Staff
+            0x10076d, // Hevnoraak's Staff
+            0x1cb36, // Sanguine Rose
+            0x35066, // Skull of Corruption
+            0xe57f0, // Spider Control Rod
+            0xc19ff, // Spider Control Rod
+            0x940d8, // Staff of Arcane Authority
+            0x7a4fb, // Staff of Hag's Wrath
+            0xe5f43, // Staff of Jyrik Gauldurson
+            0x35369, // Staff of Magnus
+            0x6a093, // Staff of Tandil
+            0x2ac6f, // Wabbajack
+        };
+
+        HashSet<string> dawnguardUniqueStaves = new()
+        {
+            "DLC1LD_AetherialStaff",
+            "DLC1RuunvaldStaff",
+        };
+
+        HashSet<string> ccUniqueStaves = new()
+        {
+            "ccBGSSSE045_StaffofHasedoki",
+            "ccPEWSSE002_Staff01",
+            "ccPEWSSE002_Staff02",
+            "ccBGSSSE019_StaffOfSheogorath",
+            "ccRMSSSE001_StaffofWorms",
+            "DLCDwarvenPuzzleDungeonControlRod",
+            "DLCDwarvenPuzzleDungeonControlRodReward",
+        };
+
+        HashSet<string> brumaUniqueStaves = new()
+        {
+            "CYRGonterFarmMS01SheepStaff",
+            "CYRWoodenStaffOfAwesomeConflagration",
+            "CYRRodOfPotency",
+            "CYRBladeOfPrepotence",
+            "CYRStaffOfTitanSummoning",
+            "CYRSceptreOfFrostyEntombment",
+        };
+
+        HashSet<FormKey> staffEnchantmentsToSkip = new();
+
+        var otherUniqueStaves =
+            new HashSet<string>(dawnguardUniqueStaves.Union(ccUniqueStaves).Union(brumaUniqueStaves));
+
         // Scrolls
         var scrollCollection = _settings.Value.PatchFullLoadOrder
             ? state.LoadOrder.PriorityOrder.Scroll().WinningOverrides()
@@ -334,6 +385,72 @@ public class Program
                 scrollCount++;
             }
 
+        // Staves
+        var staffCollection = _settings.Value.PatchFullLoadOrder
+            ? state.LoadOrder.PriorityOrder.Weapon().WinningOverrides()
+            : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.Weapons;
+
+        var staffCount = 0;
+
+        if (staffCollection != null)
+            foreach (var staff in staffCollection)
+            {
+                if (staff.EditorID is not null && (!staff.HasKeyword(staffKywd) || staff.EditorID.Contains("MAG_") ||
+                                                   staff.EditorID.Contains("Template"))) continue;
+
+                state.LinkCache.TryResolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey, out var ench);
+
+                if (ench is null)
+                {
+                    Console.WriteLine(
+                        $"WARNING: {staff.Name} (0x{staff.FormKey.ID:X}) does not have an enchantment, skipping...");
+                    continue;
+                }
+
+                if ((staff.FormKey.ModKey.FileName.ToString().Equals("Skyrim.esm")
+                     && baseGameUniqueStaves.Contains(staff.FormKey.ID))
+                    || (staff.EditorID is not null && otherUniqueStaves.Contains(staff.EditorID)))
+                {
+                    staffEnchantmentsToSkip.Add(ench.FormKey);
+                    Console.WriteLine($"Skipping unique staff {staff.Name} (0x{staff.FormKey.ID:X})");
+                    continue;
+                }
+
+                var patched = state.PatchMod.Weapons.GetOrAddAsOverride(staff);
+
+                var max = 0.0f;
+                uint costliestEffectLevel = 0;
+
+                Console.WriteLine(
+                    $"Processing staff: {staff.Name} (0x{staff.FormKey.ID:X}: {staff.FormKey.ModKey.FileName})");
+
+                foreach (var effect in ench.Effects)
+                {
+                    state.LinkCache.TryResolve<IMagicEffectGetter>(effect.BaseEffect.FormKey, out var record);
+                    if (record is null) continue;
+                    if (!(record.BaseCost > max)) continue;
+                    max = record.BaseCost;
+                    costliestEffectLevel = record.MinimumSkillLevel;
+                }
+
+                patched.EnchantmentAmount = costliestEffectLevel switch
+                {
+                    < 25 => 500,
+                    >= 25 and < 50 => 750,
+                    >= 50 and < 75 => 1500,
+                    >= 75 and < 100 => 3000,
+                    >= 100 => 5000
+                };
+
+                if (patched.EnchantmentAmount == staff.EnchantmentAmount)
+                    state.PatchMod.Remove(patched);
+
+                Console.WriteLine(
+                    $"\tFinished processing {staff.Name} (0x{staff.FormKey.ID:X}: {staff.FormKey.ModKey.FileName})");
+
+                staffCount++;
+            }
+
         // Staff enchantments
         var staffEnchCollection = _settings.Value.PatchFullLoadOrder
             ? state.LoadOrder.PriorityOrder.ObjectEffect().WinningOverrides()
@@ -348,6 +465,12 @@ public class Program
             {
                 if (ench.EditorID != null &&
                     (!ench.EditorID.Contains("Staff") || ench.EditorID.Contains("MAG_"))) continue;
+
+                if (staffEnchantmentsToSkip.Contains(ench.FormKey))
+                {
+                    Console.WriteLine($"Skipping unique staff enchantment {ench.Name} (0x{ench.FormKey.ID:X})");
+                    continue;
+                }
 
                 Console.WriteLine(
                     $"Processing staff enchantment: {ench.Name} (0x{ench.FormKey.ID:X}: {ench.FormKey.ModKey.FileName})");
@@ -388,62 +511,6 @@ public class Program
                 staffEnchCount++;
             }
 
-        // Staves
-        var staffCollection = _settings.Value.PatchFullLoadOrder
-            ? state.LoadOrder.PriorityOrder.Weapon().WinningOverrides()
-            : state.LoadOrder.TryGetValue(_modToPatch)?.Mod?.Weapons;
-
-        var staffCount = 0;
-
-        if (staffCollection != null)
-            foreach (var staff in staffCollection)
-            {
-                if (staff.EditorID != null && (!staff.HasKeyword(staffKywd) || staff.EditorID.Contains("MAG_") ||
-                                               staff.EditorID.Contains("Template"))) continue;
-
-                var patched = state.PatchMod.Weapons.GetOrAddAsOverride(staff);
-
-                state.LinkCache.TryResolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey, out var ench);
-                var max = 0.0f;
-                uint costliestEffectLevel = 0;
-
-                if (ench is null)
-                {
-                    Console.WriteLine(
-                        $"WARNING: {staff.Name} (0x{staff.FormKey.ID:X}) does not have an enchantment, skipping...");
-                    continue;
-                }
-
-                Console.WriteLine(
-                    $"Processing staff: {staff.Name} (0x{staff.FormKey.ID:X}: {staff.FormKey.ModKey.FileName})");
-
-                foreach (var effect in ench.Effects)
-                {
-                    state.LinkCache.TryResolve<IMagicEffectGetter>(effect.BaseEffect.FormKey, out var record);
-                    if (record is null) continue;
-                    if (!(record.BaseCost > max)) continue;
-                    max = record.BaseCost;
-                    costliestEffectLevel = record.MinimumSkillLevel;
-                }
-
-                patched.EnchantmentAmount = costliestEffectLevel switch
-                {
-                    < 25 => 500,
-                    >= 25 and < 50 => 750,
-                    >= 50 and < 75 => 1500,
-                    >= 75 and < 100 => 3000,
-                    >= 100 => 5000
-                };
-
-                if (patched.EnchantmentAmount == staff.EnchantmentAmount)
-                    state.PatchMod.Remove(patched);
-
-                Console.WriteLine(
-                    $"\tFinished processing {staff.Name} (0x{staff.FormKey.ID:X}: {staff.FormKey.ModKey.FileName})");
-
-                staffCount++;
-            }
-
         // Staff recipes
         var staffRecipeCollection = _settings.Value.PatchFullLoadOrder
             ? state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides()
@@ -464,24 +531,16 @@ public class Program
 
                 if (state.LinkCache.TryResolve<IWeaponGetter>(staffRecipe.CreatedObject.FormKey, out var staff))
                 {
+                    if ((staff.FormKey.ModKey.FileName.ToString().Equals("Skyrim.esm")
+                         && baseGameUniqueStaves.Contains(staff.FormKey.ID))
+                        || (staff.EditorID is not null && otherUniqueStaves.Contains(staff.EditorID)))
+                    {
+                        Console.WriteLine($"Skipping recipe for unique staff {staff.Name} (0x{staff.FormKey.ID:X})");
+                        continue;
+                    }
+
                     Console.WriteLine(
                         $"Processing recipe for {staff.Name} (0x{staffRecipe.FormKey.ID:X}: {staffRecipe.FormKey.ModKey.FileName})");
-
-                    var newRecipe = state.PatchMod.ConstructibleObjects.AddNew();
-                    newRecipe.EditorID = staffRecipe.EditorID;
-                    newRecipe.Items = new ExtendedList<ContainerEntry>();
-                    if (staffRecipe.Items != null)
-                        foreach (var item in staffRecipe.Items)
-                            newRecipe.Items.Add(item.DeepCopy());
-                    foreach (var cond in staffRecipe.Conditions)
-                        newRecipe.Conditions.Add(cond.DeepCopy());
-                    newRecipe.CreatedObject = new FormLinkNullable<IConstructibleGetter>();
-                    newRecipe.CreatedObject.SetTo(staffRecipe.CreatedObject);
-                    newRecipe.CreatedObjectCount = staffRecipe.CreatedObjectCount;
-
-                    newRecipe.EditorID += "Alt";
-                    newRecipe.WorkbenchKeyword = staffWorkbenchKywd;
-                    newRecipe.Items.RemoveAll(item => item.Item.Item.FormKey.Equals(heartStone.FormKey));
 
                     state.LinkCache.TryResolve<IObjectEffectGetter>(staff.ObjectEffect.FormKey, out var ench);
                     var max = 0.0f;
@@ -504,6 +563,22 @@ public class Program
                             $"WARNING: {staff.Name} (0x{staffRecipe.FormKey.ID:X}) does not have an enchantment, skipping...");
                         continue;
                     }
+
+                    var newRecipe = state.PatchMod.ConstructibleObjects.AddNew();
+                    newRecipe.EditorID = staffRecipe.EditorID;
+                    newRecipe.Items = new ExtendedList<ContainerEntry>();
+                    if (staffRecipe.Items != null)
+                        foreach (var item in staffRecipe.Items)
+                            newRecipe.Items.Add(item.DeepCopy());
+                    foreach (var cond in staffRecipe.Conditions)
+                        newRecipe.Conditions.Add(cond.DeepCopy());
+                    newRecipe.CreatedObject = new FormLinkNullable<IConstructibleGetter>();
+                    newRecipe.CreatedObject.SetTo(staffRecipe.CreatedObject);
+                    newRecipe.CreatedObjectCount = staffRecipe.CreatedObjectCount;
+
+                    newRecipe.EditorID += "Alt";
+                    newRecipe.WorkbenchKeyword = staffWorkbenchKywd;
+                    newRecipe.Items.RemoveAll(item => item.Item.Item.FormKey.Equals(heartStone.FormKey));
 
                     var recipes = new List<(IFormLink<ISoulGemGetter>, int)>
                     {
@@ -540,7 +615,7 @@ public class Program
                 else
                 {
                     Console.WriteLine(
-                        $"\tERROR: Failed to process recipe for {staffRecipe.EditorID} (0x{staffRecipe.FormKey.ID:X})");
+                        $"ERROR: Failed to process recipe for {staffRecipe.EditorID} (0x{staffRecipe.FormKey.ID:X})");
                     errors.Add(staffRecipe);
                 }
             }
@@ -591,10 +666,5 @@ public class Program
         var recordCount = state.PatchMod.EnumerateMajorRecords().Count();
 
         Console.WriteLine($"Patched {recordCount} records");
-
-        if (recordCount >= 2048) return;
-
-        Console.WriteLine("Generated patch has fewer than 2048 records. Adding ESL flag to plugin header...");
-        state.PatchMod.ModHeader.Flags = SkyrimModHeader.HeaderFlag.LightMaster;
     }
 }
