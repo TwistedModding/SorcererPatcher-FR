@@ -98,40 +98,30 @@ public class Program
         };
         var heartStone = state.LinkCache.Resolve<IMiscItemGetter>("DLC2HeartStone").ToNullableLink();
 
-        HashSet<uint> baseGameUniqueStaves = new()
+        HashSet<string> uniqueStaves = new()
         {
-            0x7e5bb, // Dragon Priest Staff
-            0xb3dfa, // Eye of Melka
-            0x46e0b, // Gadnor's Staff of Charming
-            0xab704, // Halldir's Staff
-            0x10076d, // Hevnoraak's Staff
-            0x1cb36, // Sanguine Rose
-            0x35066, // Skull of Corruption
-            0xe57f0, // Spider Control Rod
-            0xc19ff, // Spider Control Rod
-            0x940d8, // Staff of Arcane Authority
-            0x7a4fb, // Staff of Hag's Wrath
-            0xe5f43, // Staff of Jyrik Gauldurson
-            0x35369, // Staff of Magnus
-            0x6a093, // Staff of Tandil
-            0x2ac6f, // Wabbajack
-        };
-
-        HashSet<string> dawnguardUniqueStaves = new()
-        {
-            "DLC1LD_AetherialStaff",
-            "DLC1RuunvaldStaff",
-        };
-
-        HashSet<string> ccUniqueStaves = new()
-        {
-            "ccBGSSSE045_StaffofHasedoki",
-            "ccPEWSSE002_Staff01",
-            "ccPEWSSE002_Staff02",
-            "ccBGSSSE019_StaffOfSheogorath",
-            "ccRMSSSE001_StaffofWorms",
-            "DLCDwarvenPuzzleDungeonControlRod",
-            "DLCDwarvenPuzzleDungeonControlRodReward",
+            "Dragon Priest Staff",
+            "Eye of Melka",
+            "Gadnor's Staff of Charming",
+            "Halldir's Staff",
+            "Hevnoraak's Staff",
+            "Sanguine Rose",
+            "Skull of Corruption",
+            "Spider Control Rod",
+            "Staff of Arcane Authority",
+            "Staff of Hag's Wrath",
+            "Staff of Jyrik Gauldurson",
+            "Staff of Magnus",
+            "Staff of Tandil",
+            "Wabbajack",
+            "Aetherial Staff",
+            "Staff of Ruunvald",
+            "Miraak's Staff",
+            "Staff of Hasedoki",
+            "Arm of the Moon",
+            "Arm of the Sun",
+            "Staff of Sheogorath",
+            "Staff of Worms"
         };
 
         HashSet<string> brumaUniqueStaves = new()
@@ -141,13 +131,10 @@ public class Program
             "CYRRodOfPotency",
             "CYRBladeOfPrepotence",
             "CYRStaffOfTitanSummoning",
-            "CYRSceptreOfFrostyEntombment",
+            "CYRSceptreOfFrostyEntombment"
         };
 
         HashSet<FormKey> staffEnchantmentsToSkip = new();
-
-        var otherUniqueStaves =
-            new HashSet<string>(dawnguardUniqueStaves.Union(ccUniqueStaves).Union(brumaUniqueStaves));
 
         // Scrolls
         var scrollCollection = _settings.Value.PatchFullLoadOrder
@@ -407,9 +394,10 @@ public class Program
                     continue;
                 }
 
-                if ((staff.FormKey.ModKey.FileName.ToString().Equals("Skyrim.esm")
-                     && baseGameUniqueStaves.Contains(staff.FormKey.ID))
-                    || (staff.EditorID is not null && otherUniqueStaves.Contains(staff.EditorID)))
+                if ((staff.FormKey.ModKey.FileName.ToString().Equals("BSHeartland.esm")
+                     && staff.EditorID is not null
+                     && brumaUniqueStaves.Contains(staff.EditorID))
+                    || (staff.Name?.String != null && uniqueStaves.Contains(staff.Name.String)))
                 {
                     staffEnchantmentsToSkip.Add(ench.FormKey);
                     Console.WriteLine($"Skipping unique staff {staff.Name} (0x{staff.FormKey.ID:X})");
@@ -531,9 +519,10 @@ public class Program
 
                 if (state.LinkCache.TryResolve<IWeaponGetter>(staffRecipe.CreatedObject.FormKey, out var staff))
                 {
-                    if ((staff.FormKey.ModKey.FileName.ToString().Equals("Skyrim.esm")
-                         && baseGameUniqueStaves.Contains(staff.FormKey.ID))
-                        || (staff.EditorID is not null && otherUniqueStaves.Contains(staff.EditorID)))
+                    if ((staff.FormKey.ModKey.FileName.ToString().Equals("BSHeartland.esm")
+                         && staff.EditorID is not null
+                         && brumaUniqueStaves.Contains(staff.EditorID))
+                        || (staff.Name?.String != null && uniqueStaves.Contains(staff.Name.String)))
                     {
                         Console.WriteLine($"Skipping recipe for unique staff {staff.Name} (0x{staff.FormKey.ID:X})");
                         continue;
